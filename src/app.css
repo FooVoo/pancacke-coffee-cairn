@@ -1,2 +1,78 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+
+:root {
+    /* Core palette */
+    --grim-bg: #0b0b0c;           /* main page background */
+    --grim-surface: #101112;      /* cards, panels */
+    --grim-muted: #222426;        /* muted surfaces / overlays */
+    --grim-text: #e6e3dd;         /* primary text (off-white) */
+    --grim-muted-text: #a9a7a4;   /* secondary text */
+
+    /* Semantic colors */
+    --grim-primary: #7f1919;      /* blood / primary */
+    --grim-primary-contrast: #f7efe9;
+    --grim-secondary: #4b5b3b;    /* sick olive / secondary */
+    --grim-accent: #2b7c78;       /* teal accent */
+    --grim-danger: #a02b2b;
+    --grim-success: #3a6b3a;
+
+    /* borders and shadows */
+    --grim-border: #1a1b1c;
+    --grim-shadow: rgba(0,0,0,0.7);
+
+    --grim-border-radius: 0.5rem;
+    --grim-gutter: 1rem;
+
+    --breakpoint-xs: 480px;   /* extra small devices */
+    --breakpoint-sm: 640px;   /* small devices (phones landscape) */
+    --breakpoint-md: 768px;   /* tablets */
+    --breakpoint-lg: 1024px;  /* laptops */
+    --breakpoint-xl: 1280px;  /* desktops */
+    --breakpoint-2xl: 1536px; /* large desktops */
+}
+
+/* Background / surface */
+.bg-grim { background-color: var(--grim-bg); color: var(--grim-text); }
+.surface-grim { background-color: var(--grim-surface); color: var(--grim-text); }
+.muted-surface { background-color: var(--grim-muted); color: var(--grim-muted-text); }
+
+/* Primary / secondary / accent utilities */
+.bg-primary { background-color: var(--grim-primary); color: var(--grim-primary-contrast); }
+.text-primary { color: var(--grim-primary); }
+.border-primary { border-color: var(--grim-primary); }
+
+.bg-secondary { background-color: var(--grim-secondary); color: var(--grim-primary-contrast); }
+.text-secondary { color: var(--grim-secondary); }
+.border-secondary { border-color: var(--grim-secondary); }
+
+.bg-accent { background-color: var(--grim-accent); color: var(--grim-primary-contrast); }
+.text-accent { color: var(--grim-accent); }
+
+/* Semantic */
+.bg-danger { background-color: var(--grim-danger); color: var(--grim-primary-contrast); }
+.bg-success { background-color: var(--grim-success); color: var(--grim-primary-contrast); }
+
+/* Small components */
+.btn-grim {
+    display: inline-block;
+    padding: 0.45rem 0.9rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--grim-border);
+    background: var(--grim-surface);
+    color: var(--grim-text);
+    box-shadow: 0 6px 18px var(--grim-shadow);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.btn-grim:hover { transform: translateY(-2px); box-shadow: 0 10px 28px var(--grim-shadow); }
+
+/* Primary button */
+.btn-primary {
+    background: linear-gradient(180deg, var(--grim-primary) 0%, color-mix(in srgb, var(--grim-primary) 75%, black 25%) 100%);
+    color: var(--grim-primary-contrast);
+    border: 1px solid color-mix(in srgb, var(--grim-primary) 45%, black 55%);
+}
+
+/* Utilities for borders and text */
+.border-grim { border: 1px solid var(--grim-border); }
+.text-muted { color: var(--grim-muted-text); }
