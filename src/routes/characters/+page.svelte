@@ -1,29 +1,55 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import charterImage from '$lib/assets/char-example.png';
+	import { characterStore } from '$lib/stores/characterStore';
+	import { onMount } from 'svelte';
+	import { getDemoCharacter } from '$lib/data/demoCharacter';
 
 	let { data }: { data: PageData } = $props();
+
+	// Load local characters from IndexedDB for anonymous users
+	onMount(async () => {
+		if (!data.isAuthenticated) {
+			await characterStore.loadLocal();
+			
+			// Create demo character if this is first visit
+			const chars = $characterStore;
+			if (chars.length === 0) {
+				await characterStore.addLocal(getDemoCharacter());
+			}
+		}
+	});
+
+	// Merge server-side and client-side characters
+	const allCharacters = $derived(
+		data.isAuthenticated ? data.characters : $characterStore
+	);
 </script>
 
 <main class="characters-page">
 	<header class="page-header">
 		<h1>Your Characters</h1>
 		<div class="header-actions">
-			<span class="user-info">Welcome, {data.user.username}</span>
-			<form method="POST" action="/logout">
-				<button type="submit" class="btn-secondary">Logout</button>
-			</form>
+			{#if data.isAuthenticated && data.user}
+				<span class="user-info">Welcome, {data.user.username}</span>
+				<form method="POST" action="/logout">
+					<button type="submit" class="btn-secondary">Logout</button>
+				</form>
+			{:else}
+				<span class="user-info">Guest Mode (data stored locally)</span>
+				<a href="/login" class="btn-secondary">Login</a>
+			{/if}
 		</div>
 	</header>
 
-	{#if data.characters.length === 0}
+	{#if allCharacters.length === 0}
 		<div class="empty-state">
 			<p>You don't have any characters yet.</p>
 			<a href="/characters/new" class="btn-primary">Create Your First Character</a>
 		</div>
 	{:else}
 		<div class="characters-grid">
-			{#each data.characters as character (character.id)}
+			{#each allCharacters as character (character.id)}
 				<a href="/characters/{character.id}" class="character-card">
 					<div class="character-avatar">
 						<img
