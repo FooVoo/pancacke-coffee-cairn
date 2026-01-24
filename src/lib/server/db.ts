@@ -1,5 +1,6 @@
 import { createClient } from '@libsql/client';
 import type { Client } from '@libsql/client';
+import { env } from './env';
 
 let dbClient: Client | null = null;
 
@@ -8,14 +9,10 @@ export function getDb(): Client {
 		return dbClient;
 	}
 
-	// For development/mock, use in-memory database
-	// In production, use TURSO_DATABASE_URL and TURSO_AUTH_TOKEN from env
-	const url = process.env.TURSO_DATABASE_URL || ':memory:';
-	const authToken = process.env.TURSO_AUTH_TOKEN;
-
+	// Use centralized env configuration
 	dbClient = createClient({
-		url,
-		authToken
+		url: env.turso.databaseUrl,
+		authToken: env.turso.authToken
 	});
 
 	return dbClient;

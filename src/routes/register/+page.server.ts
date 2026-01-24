@@ -1,6 +1,7 @@
 import type { Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createUser, createSession, getUserByUsername } from '$lib/server/auth';
+import { env } from '$lib/server/env';
 
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
@@ -31,8 +32,8 @@ export const actions: Actions = {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'strict',
-				secure: process.env.NODE_ENV === 'production',
-				maxAge: 60 * 60 * 24 * 30 // 30 days
+				secure: env.isProduction,
+				maxAge: env.session.maxAge
 			});
 		} catch (error) {
 			return fail(500, { error: 'Failed to create account' });

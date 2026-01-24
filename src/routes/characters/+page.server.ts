@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { getCharactersByUser } from '$lib/server/characters';
 import { createUser, getUserByUsername, createSession } from '$lib/server/auth';
 import { createCharacter } from '$lib/server/characters';
+import { env } from '$lib/server/env';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	// Auto-create demo user if not exists and not logged in
@@ -73,8 +74,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'strict',
-			secure: process.env.NODE_ENV === 'production',
-			maxAge: 60 * 60 * 24 * 30
+			secure: env.isProduction,
+			maxAge: env.session.maxAge
 		});
 
 		throw redirect(307, '/login');
