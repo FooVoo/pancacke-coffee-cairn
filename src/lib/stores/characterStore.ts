@@ -157,6 +157,16 @@ function convertToIndexedDB(
 	};
 }
 
+// Helper function to safely parse JSON with fallback
+function safeJsonParse<T>(value: string | undefined, fallback: T): T {
+	if (!value) return fallback;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return fallback;
+	}
+}
+
 function convertFromIndexedDB(dbChar: CairnCharacterIndexedDB): Character {
 	return {
 		id: dbChar.id,
@@ -178,24 +188,24 @@ function convertFromIndexedDB(dbChar: CairnCharacterIndexedDB): Character {
 		hitDie: dbChar.hitDie,
 		armorClass: dbChar.armorClass,
 		proficiencyBonus: dbChar.proficiencyBonus,
-		savingThrows: JSON.parse(dbChar.savingThrows || '[]'),
-		skills: JSON.parse(dbChar.skills || '[]'),
-		proficiencies: JSON.parse(dbChar.proficiencies || '[]'),
-		languages: JSON.parse(dbChar.languages || '[]'),
-		equipment: JSON.parse(dbChar.equipment || '[]'),
-		weapons: JSON.parse(dbChar.weapons || '[]'),
-		armor: JSON.parse(dbChar.armor || '[]'),
-		spells: JSON.parse(dbChar.spells || '[]'),
-		spellSlots: JSON.parse(dbChar.spellSlots || '{}'),
+		savingThrows: safeJsonParse(dbChar.savingThrows, []),
+		skills: safeJsonParse(dbChar.skills, []),
+		proficiencies: safeJsonParse(dbChar.proficiencies, []),
+		languages: safeJsonParse(dbChar.languages, []),
+		equipment: safeJsonParse(dbChar.equipment, []),
+		weapons: safeJsonParse(dbChar.weapons, []),
+		armor: safeJsonParse(dbChar.armor, []),
+		spells: safeJsonParse(dbChar.spells, []),
+		spellSlots: safeJsonParse(dbChar.spellSlots, {}),
 		gold: dbChar.gold,
 		silver: dbChar.silver,
 		copper: dbChar.copper,
-		traits: JSON.parse(dbChar.traits || '[]'),
+		traits: safeJsonParse(dbChar.traits, []),
 		ideals: dbChar.ideals,
 		bonds: dbChar.bonds,
 		flaws: dbChar.flaws,
-		conditions: JSON.parse(dbChar.conditions || '[]'),
-		features: JSON.parse(dbChar.features || '[]'),
+		conditions: safeJsonParse(dbChar.conditions, []),
+		features: safeJsonParse(dbChar.features, []),
 		notes: dbChar.notes,
 		avatarUrl: dbChar.avatarUrl,
 		createdAt: dbChar.createdAt,

@@ -6,16 +6,18 @@
 	import { getDemoCharacter } from '$lib/data/demoCharacter';
 
 	let { data }: { data: PageData } = $props();
+	let demoCharacterCreated = $state(false);
 
 	// Load local characters from IndexedDB for anonymous users
 	onMount(async () => {
-		if (!data.isAuthenticated) {
+		if (!data.isAuthenticated && !demoCharacterCreated) {
 			await characterStore.loadLocal();
 			
 			// Create demo character if this is first visit
 			const chars = $characterStore;
 			if (chars.length === 0) {
 				await characterStore.addLocal(getDemoCharacter());
+				demoCharacterCreated = true;
 			}
 		}
 	});

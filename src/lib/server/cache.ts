@@ -84,9 +84,7 @@ function startCacheCleanup(caches: Cache<any>[]) {
 	); // 5 minutes
 	
 	// Don't keep Node.js process alive for cleanup
-	if (cleanupInterval.unref) {
-		cleanupInterval.unref();
-	}
+	cleanupInterval.unref();
 }
 
 // Function to stop cache cleanup (useful for testing or graceful shutdown)
