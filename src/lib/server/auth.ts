@@ -1,5 +1,6 @@
 import { getDb } from './db';
 import type { RequestEvent } from '@sveltejs/kit';
+import { sessionCache, userCache, userByUsernameCache } from './cache';
 
 export interface User {
 	id: string;
@@ -26,14 +27,16 @@ export function verifyPassword(password: string, hash: string): boolean {
 	return hash === `mock_hash_${password}`;
 }
 
-// ⚠️ WARNING: These ID generators are NOT suitable for production
-// In production, use proper UUID libraries (crypto.randomUUID() or uuid package)
+// ⚠️ WARNING: These ID generators use crypto.randomUUID() for better security
+// but are still simple implementations. For production, consider additional security measures.
 export function generateSessionId(): string {
-	return `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	// Use crypto.randomUUID() for cryptographically secure random IDs
+	return `session_${crypto.randomUUID()}`;
 }
 
 export function generateUserId(): string {
-	return `user_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	// Use crypto.randomUUID() for cryptographically secure random IDs
+	return `user_${crypto.randomUUID()}`;
 }
 
 export async function createUser(username: string, email: string, password: string): Promise<User> {
@@ -54,6 +57,13 @@ export async function createUser(username: string, email: string, password: stri
 }
 
 export async function getUserByUsername(username: string): Promise<User | null> {
+	// Check cache first
+	const cacheKey = `username:${username}`;
+	const cached = userByUsernameCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
 	const db = getDb();
 
 	const result = await db.execute({
@@ -66,11 +76,16 @@ export async function getUserByUsername(username: string): Promise<User | null> 
 	}
 
 	const row = result.rows[0];
-	return {
+	const user = {
 		id: row.id as string,
 		username: row.username as string,
 		email: row.email as string
 	};
+
+	// Cache the result
+	userByUsernameCache.set(cacheKey, user);
+
+	return user;
 }
 
 export async function verifyUserCredentials(
@@ -113,14 +128,32 @@ export async function createSession(userId: string): Promise<Session> {
 		args: [sessionId, userId, expiresAt.toISOString()]
 	});
 
-	return {
+	const session = {
 		id: sessionId,
 		userId,
 		expiresAt
 	};
+
+	// Cache the session
+	sessionCache.set(`session:${sessionId}`, session);
+
+	return session;
 }
 
 export async function getSession(sessionId: string): Promise<Session | null> {
+	// Check cache first
+	const cacheKey = `session:${sessionId}`;
+	const cached = sessionCache.get(cacheKey);
+	if (cached) {
+		// Verify it's not expired
+		if (new Date(cached.expiresAt) > new Date()) {
+			return cached;
+		}
+		// If expired, remove from cache
+		sessionCache.delete(cacheKey);
+		return null;
+	}
+
 	const db = getDb();
 
 	const result = await db.execute({
@@ -133,11 +166,16 @@ export async function getSession(sessionId: string): Promise<Session | null> {
 	}
 
 	const row = result.rows[0];
-	return {
+	const session = {
 		id: row.id as string,
 		userId: row.user_id as string,
 		expiresAt: new Date(row.expires_at as string)
 	};
+
+	// Cache the session
+	sessionCache.set(cacheKey, session);
+
+	return session;
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
@@ -147,12 +185,22 @@ export async function deleteSession(sessionId: string): Promise<void> {
 		sql: 'DELETE FROM sessions WHERE id = ?',
 		args: [sessionId]
 	});
+
+	// Remove from cache
+	sessionCache.delete(`session:${sessionId}`);
 }
 
 export async function getUserFromSession(sessionId: string): Promise<User | null> {
 	const session = await getSession(sessionId);
 	if (!session) {
 		return null;
+	}
+
+	// Check user cache first
+	const cacheKey = `user:${session.userId}`;
+	const cached = userCache.get(cacheKey);
+	if (cached) {
+		return cached;
 	}
 
 	const db = getDb();
@@ -166,11 +214,16 @@ export async function getUserFromSession(sessionId: string): Promise<User | null
 	}
 
 	const row = result.rows[0];
-	return {
+	const user = {
 		id: row.id as string,
 		username: row.username as string,
 		email: row.email as string
 	};
+
+	// Cache the user
+	userCache.set(cacheKey, user);
+
+	return user;
 }
 
 // Helper to get user from request event

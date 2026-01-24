@@ -45,10 +45,9 @@ export interface CairnCharacter {
 	updatedAt?: Date;
 }
 
-// ⚠️ WARNING: This ID generator is NOT suitable for production
-// In production, use proper UUID libraries (crypto.randomUUID() or uuid package)
+// Generate character ID using crypto.randomUUID() for better security
 export function generateCharacterId(): string {
-	return `char_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	return `char_${crypto.randomUUID()}`;
 }
 
 export async function createCharacter(character: CairnCharacter): Promise<CairnCharacter> {

@@ -2,5 +2,6 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	throw redirect(308, '/login');
+	// Redirect to characters page (works for both authenticated and anonymous users)
+	throw redirect(308, '/characters');
 };
