@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 			maxAge: 60 * 60 * 24 * 30
 		});
 
-		throw redirect(303, '/characters/demo');
+		throw redirect(303, '/characters');
 	}
 
 	const characters = await getCharactersByUser(locals.user.id);
