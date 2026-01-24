@@ -121,7 +121,7 @@ export async function getSession(sessionId: string): Promise<Session | null> {
 	const db = getDb();
 
 	const result = await db.execute({
-		sql: 'SELECT id, user_id, expires_at FROM sessions WHERE id = ? AND expires_at > datetime("now")',
+		sql: 'SELECT id, user_id, expires_at FROM sessions WHERE id = ? AND expires_at > CURRENT_TIMESTAMP',
 		args: [sessionId]
 	});
 
