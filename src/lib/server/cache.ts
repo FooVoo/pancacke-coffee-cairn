@@ -66,8 +66,15 @@ export class Cache<T> {
 }
 
 // Periodically clean up expired cache entries every 5 minutes
+let cleanupInterval: NodeJS.Timeout | null = null;
+
 function startCacheCleanup(caches: Cache<any>[]) {
-	setInterval(
+	// Clear existing interval if any
+	if (cleanupInterval) {
+		clearInterval(cleanupInterval);
+	}
+	
+	cleanupInterval = setInterval(
 		() => {
 			for (const cache of caches) {
 				cache.cleanup();
@@ -75,6 +82,19 @@ function startCacheCleanup(caches: Cache<any>[]) {
 		},
 		5 * 60 * 1000
 	); // 5 minutes
+	
+	// Don't keep Node.js process alive for cleanup
+	if (cleanupInterval.unref) {
+		cleanupInterval.unref();
+	}
+}
+
+// Function to stop cache cleanup (useful for testing or graceful shutdown)
+export function stopCacheCleanup() {
+	if (cleanupInterval) {
+		clearInterval(cleanupInterval);
+		cleanupInterval = null;
+	}
 }
 
 // Export cache instances for different data types

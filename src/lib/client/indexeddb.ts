@@ -61,9 +61,10 @@ export class CharacterDatabase extends Dexie {
 // Create singleton instance
 export const db = new CharacterDatabase();
 
-// Helper to generate character ID for IndexedDB
+// Helper to generate character ID for IndexedDB using crypto for better security
 export function generateLocalCharacterId(): string {
-	return `local_char_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	// Use crypto.randomUUID() for better random ID generation
+	return `local_char_${crypto.randomUUID()}`;
 }
 
 // CRUD operations for IndexedDB

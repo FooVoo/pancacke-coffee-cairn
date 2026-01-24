@@ -27,14 +27,16 @@ export function verifyPassword(password: string, hash: string): boolean {
 	return hash === `mock_hash_${password}`;
 }
 
-// ⚠️ WARNING: These ID generators are NOT suitable for production
-// In production, use proper UUID libraries (crypto.randomUUID() or uuid package)
+// ⚠️ WARNING: These ID generators use crypto.randomUUID() for better security
+// but are still simple implementations. For production, consider additional security measures.
 export function generateSessionId(): string {
-	return `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	// Use crypto.randomUUID() for cryptographically secure random IDs
+	return `session_${crypto.randomUUID()}`;
 }
 
 export function generateUserId(): string {
-	return `user_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	// Use crypto.randomUUID() for cryptographically secure random IDs
+	return `user_${crypto.randomUUID()}`;
 }
 
 export async function createUser(username: string, email: string, password: string): Promise<User> {
