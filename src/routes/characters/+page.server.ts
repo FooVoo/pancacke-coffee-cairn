@@ -9,11 +9,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 	if (!locals.user) {
 		const demoUsername = 'demo';
 		let demoUser = await getUserByUsername(demoUsername);
-		
+
 		if (!demoUser) {
 			// Create demo user
 			demoUser = await createUser(demoUsername, 'demo@example.com', 'demo');
-			
+
 			// Create demo character with enriched data
 			await createCharacter({
 				userId: demoUser.id,
@@ -44,10 +44,13 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 					{ name: 'Quarterstaff', damage: '1d6', properties: 'Versatile (1d8)' },
 					{ name: 'Dagger', damage: '1d4', properties: 'Light, Thrown (20/60)' }
 				],
-				armor: [
-					{ name: 'Leather Armor', ac: 11, properties: 'Light' }
+				armor: [{ name: 'Leather Armor', ac: 11, properties: 'Light' }],
+				spells: [
+					'Lesser Ward (protect 1)',
+					'Guiding Ember (small light)',
+					'Detect Magic',
+					'Healing Word'
 				],
-				spells: ['Lesser Ward (protect 1)', 'Guiding Ember (small light)', 'Detect Magic', 'Healing Word'],
 				spellSlots: { '1': 4, '2': 2 },
 				gold: 15,
 				silver: 8,
@@ -55,13 +58,15 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 				traits: ['Cautious', 'Knowledgeable', 'Resourceful'],
 				ideals: 'Knowledge should be preserved and shared with those who seek it.',
 				bonds: 'I seek the lost tome of herb lore that belonged to my mentor.',
-				flaws: 'I am too curious for my own good and often get into trouble investigating mysteries.',
+				flaws:
+					'I am too curious for my own good and often get into trouble investigating mysteries.',
 				conditions: [],
 				features: ['Ritual Casting', 'Herbalist Training', 'Lore Keeper'],
-				notes: 'Prefers diplomacy but knows simple defensive magics and remedies. Currently searching for ancient texts in the borderlands.'
+				notes:
+					'Prefers diplomacy but knows simple defensive magics and remedies. Currently searching for ancient texts in the borderlands.'
 			});
 		}
-		
+
 		// Auto-login demo user
 		const session = await createSession(demoUser.id);
 		cookies.set('session_id', session.id, {
@@ -71,8 +76,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 			secure: process.env.NODE_ENV === 'production',
 			maxAge: 60 * 60 * 24 * 30
 		});
-		
-		throw redirect(303, '/characters');
+
+		throw redirect(303, '/characters/demo');
 	}
 
 	const characters = await getCharactersByUser(locals.user.id);
