@@ -14,17 +14,20 @@ export interface Session {
 }
 
 // Mock authentication utilities
+// ⚠️ WARNING: These are DEVELOPMENT MOCKS ONLY and provide NO SECURITY
 // In production, use proper password hashing (bcrypt, argon2, etc.)
 export function hashPassword(password: string): string {
-	// MOCK: In production, use proper hashing
+	// MOCK: In production, use proper hashing like bcrypt.hash()
 	return `mock_hash_${password}`;
 }
 
 export function verifyPassword(password: string, hash: string): boolean {
-	// MOCK: In production, use proper verification
+	// MOCK: In production, use proper verification like bcrypt.compare()
 	return hash === `mock_hash_${password}`;
 }
 
+// ⚠️ WARNING: These ID generators are NOT suitable for production
+// In production, use proper UUID libraries (crypto.randomUUID() or uuid package)
 export function generateSessionId(): string {
 	return `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 }

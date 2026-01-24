@@ -45,6 +45,8 @@ export interface CairnCharacter {
 	updatedAt?: Date;
 }
 
+// ⚠️ WARNING: This ID generator is NOT suitable for production
+// In production, use proper UUID libraries (crypto.randomUUID() or uuid package)
 export function generateCharacterId(): string {
 	return `char_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 }

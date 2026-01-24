@@ -34,10 +34,10 @@ export const actions: Actions = {
 				secure: process.env.NODE_ENV === 'production',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
-
-			throw redirect(303, '/characters');
 		} catch (error) {
 			return fail(500, { error: 'Failed to create account' });
 		}
+
+		throw redirect(303, '/characters');
 	}
 };
