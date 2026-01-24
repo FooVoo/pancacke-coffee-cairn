@@ -48,6 +48,8 @@
 		"vitest-browser-svelte": "^1.1.0"
 	},
 	"dependencies": {
-		"@vercel/speed-insights": "^1.2.0"
+		"@libsql/client": "^0.17.0",
+		"@vercel/speed-insights": "^1.2.0",
+		"dotenv": "^17.2.3"
 	}
 }
