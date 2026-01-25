@@ -70,7 +70,10 @@ export async function incrementRetry(id: number): Promise<void> {
 
 // Assign user ID to all pending syncs (when user logs in)
 export async function assignUserToSyncs(userId: string): Promise<void> {
-	const pendingSyncs = await syncQueueDb.queue.where('userId').equals(undefined).toArray();
+	const pendingSyncs = await syncQueueDb.queue
+		.filter(item => !item.userId)
+		.toArray();
+	
 	for (const sync of pendingSyncs) {
 		if (sync.id) {
 			await syncQueueDb.queue.update(sync.id, { userId });

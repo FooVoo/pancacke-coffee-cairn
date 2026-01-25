@@ -17,6 +17,16 @@
 				const localChar = await getLocalCharacter(data.characterId);
 				
 				if (localChar) {
+					// Helper to safely parse JSON
+					const safeJsonParse = (value: string | undefined, fallback: any) => {
+						if (!value) return fallback;
+						try {
+							return JSON.parse(value);
+						} catch {
+							return fallback;
+						}
+					};
+					
 					// Convert from IndexedDB format
 					character = {
 						id: localChar.id,
@@ -38,24 +48,24 @@
 						hitDie: localChar.hitDie,
 						armorClass: localChar.armorClass,
 						proficiencyBonus: localChar.proficiencyBonus,
-						savingThrows: JSON.parse(localChar.savingThrows || '[]'),
-						skills: JSON.parse(localChar.skills || '[]'),
-						proficiencies: JSON.parse(localChar.proficiencies || '[]'),
-						languages: JSON.parse(localChar.languages || '[]'),
-						equipment: JSON.parse(localChar.equipment || '[]'),
-						weapons: JSON.parse(localChar.weapons || '[]'),
-						armor: JSON.parse(localChar.armor || '[]'),
-						spells: JSON.parse(localChar.spells || '[]'),
-						spellSlots: JSON.parse(localChar.spellSlots || '{}'),
+						savingThrows: safeJsonParse(localChar.savingThrows, []),
+						skills: safeJsonParse(localChar.skills, []),
+						proficiencies: safeJsonParse(localChar.proficiencies, []),
+						languages: safeJsonParse(localChar.languages, []),
+						equipment: safeJsonParse(localChar.equipment, []),
+						weapons: safeJsonParse(localChar.weapons, []),
+						armor: safeJsonParse(localChar.armor, []),
+						spells: safeJsonParse(localChar.spells, []),
+						spellSlots: safeJsonParse(localChar.spellSlots, {}),
 						gold: localChar.gold,
 						silver: localChar.silver,
 						copper: localChar.copper,
-						traits: JSON.parse(localChar.traits || '[]'),
+						traits: safeJsonParse(localChar.traits, []),
 						ideals: localChar.ideals,
 						bonds: localChar.bonds,
 						flaws: localChar.flaws,
-						conditions: JSON.parse(localChar.conditions || '[]'),
-						features: JSON.parse(localChar.features || '[]'),
+						conditions: safeJsonParse(localChar.conditions, []),
+						features: safeJsonParse(localChar.features, []),
 						notes: localChar.notes,
 						avatarUrl: localChar.avatarUrl
 					};

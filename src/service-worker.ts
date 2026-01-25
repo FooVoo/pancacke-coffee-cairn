@@ -65,6 +65,26 @@ sw.addEventListener('message', (event) => {
 });
 
 /**
+ * Helper to wrap IndexedDB request in a Promise
+ */
+function wrapIDBRequest(request: IDBRequest): Promise<any> {
+	return new Promise((resolve, reject) => {
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+}
+
+/**
+ * Helper to wrap IndexedDB transaction in a Promise
+ */
+function wrapIDBTransaction(transaction: IDBTransaction): Promise<void> {
+	return new Promise((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onerror = () => reject(transaction.error);
+	});
+}
+
+/**
  * Sync character data from IndexedDB to TursoDB
  * This function processes the sync queue and sends pending operations to the server
  */
@@ -75,32 +95,29 @@ async function syncCharacterData() {
 		// Open the sync queue database directly using IndexedDB API
 		const dbRequest = indexedDB.open('CairnSyncQueue', 1);
 		
-		await new Promise((resolve, reject) => {
-			dbRequest.onsuccess = () => resolve(dbRequest.result);
+		const db = await new Promise((resolve, reject) => {
 			dbRequest.onerror = () => reject(dbRequest.error);
 			dbRequest.onupgradeneeded = (event) => {
-				const db = event.target.result;
-				if (!db.objectStoreNames.contains('queue')) {
-					const objectStore = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+				const database = (event.target as IDBOpenDBRequest).result;
+				if (!database.objectStoreNames.contains('queue')) {
+					const objectStore = database.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
 					objectStore.createIndex('characterId', 'characterId', { unique: false });
 					objectStore.createIndex('operation', 'operation', { unique: false });
 					objectStore.createIndex('timestamp', 'timestamp', { unique: false });
 					objectStore.createIndex('userId', 'userId', { unique: false });
 				}
 			};
+			dbRequest.onsuccess = () => {
+				resolve((dbRequest as IDBOpenDBRequest).result);
+			};
 		});
-		
-		const db = dbRequest.result;
 		
 		// Get all pending sync operations
 		const transaction = db.transaction(['queue'], 'readonly');
 		const objectStore = transaction.objectStore('queue');
 		const getAllRequest = objectStore.getAll();
 		
-		const pendingSyncs = await new Promise((resolve, reject) => {
-			getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-			getAllRequest.onerror = () => reject(getAllRequest.error);
-		});
+		const pendingSyncs = await wrapIDBRequest(getAllRequest);
 		
 		if (!pendingSyncs || pendingSyncs.length === 0) {
 			console.log('[Service Worker] No pending syncs');
@@ -145,10 +162,7 @@ async function syncCharacterData() {
 						const deleteObjectStore = deleteTransaction.objectStore('queue');
 						deleteObjectStore.delete(syncItem.id);
 						
-						await new Promise((resolve, reject) => {
-							deleteTransaction.oncomplete = () => resolve(undefined);
-							deleteTransaction.onerror = () => reject(deleteTransaction.error);
-						});
+						await wrapIDBTransaction(deleteTransaction);
 						
 						console.log('[Service Worker] Sync completed:', syncItem.id);
 					}
@@ -159,13 +173,12 @@ async function syncCharacterData() {
 						const updateObjectStore = updateTransaction.objectStore('queue');
 						const getRequest = updateObjectStore.get(syncItem.id);
 						
-						await new Promise((resolve, reject) => {
-							getRequest.onsuccess = () => {
-								const item = getRequest.result;
-								if (item) {
-									item.retryCount = (item.retryCount || 0) + 1;
-									updateObjectStore.put(item);
-								}
+						const item = await wrapIDBRequest(getRequest);
+						if (item) {
+							item.retryCount = (item.retryCount || 0) + 1;
+							updateObjectStore.put(item);
+							await wrapIDBTransaction(updateTransaction);
+						}
 								resolve(undefined);
 							};
 							getRequest.onerror = () => reject(getRequest.error);
@@ -183,17 +196,12 @@ async function syncCharacterData() {
 						const updateObjectStore = updateTransaction.objectStore('queue');
 						const getRequest = updateObjectStore.get(syncItem.id);
 						
-						await new Promise((resolve, reject) => {
-							getRequest.onsuccess = () => {
-								const item = getRequest.result;
-								if (item) {
-									item.retryCount = (item.retryCount || 0) + 1;
-									updateObjectStore.put(item);
-								}
-								resolve(undefined);
-							};
-							getRequest.onerror = () => reject(getRequest.error);
-						});
+						const item = await wrapIDBRequest(getRequest);
+						if (item) {
+							item.retryCount = (item.retryCount || 0) + 1;
+							updateObjectStore.put(item);
+							await wrapIDBTransaction(updateTransaction);
+						}
 					} catch (updateError) {
 						console.error('[Service Worker] Error updating retry count:', updateError);
 					}
