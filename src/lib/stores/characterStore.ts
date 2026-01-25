@@ -69,34 +69,82 @@ function createCharacterStore() {
 			const characters = localChars.map(convertFromIndexedDB);
 			set(characters);
 		},
-		// Add a character to IndexedDB
-		async addLocal(character: Character) {
+		// Add a character to IndexedDB and queue for sync
+		async addLocal(character: Character, isAuthenticated = false) {
 			if (!browser) return;
 
 			const { createLocalCharacter } = await import('../client/indexeddb');
+			const { queueSync } = await import('../client/syncQueue');
+			
 			const dbChar = convertToIndexedDB(character);
 			const created = await createLocalCharacter(dbChar);
 			const newChar = convertFromIndexedDB(created);
 
+			// Queue sync operation if user is authenticated
+			if (isAuthenticated && created.id) {
+				await queueSync(created.id, 'create', newChar);
+				// Trigger background sync
+				if ('serviceWorker' in navigator && 'sync' in (self as any).registration) {
+					try {
+						const registration = await navigator.serviceWorker.ready;
+						await registration.sync.register('cairn-character-sync');
+					} catch (error) {
+						console.error('Background sync registration failed:', error);
+					}
+				}
+			}
+
 			update((chars) => [newChar, ...chars]);
 			return newChar;
 		},
-		// Update a character in IndexedDB
-		async updateLocal(id: string, updates: Partial<Character>) {
+		// Update a character in IndexedDB and queue for sync
+		async updateLocal(id: string, updates: Partial<Character>, isAuthenticated = false) {
 			if (!browser) return;
 
 			const { updateLocalCharacter } = await import('../client/indexeddb');
+			const { queueSync } = await import('../client/syncQueue');
+			
 			const dbUpdates = convertToIndexedDB(updates as Character);
 			await updateLocalCharacter(id, dbUpdates);
 
+			// Queue sync operation if user is authenticated
+			if (isAuthenticated) {
+				await queueSync(id, 'update', updates);
+				// Trigger background sync
+				if ('serviceWorker' in navigator && 'sync' in (self as any).registration) {
+					try {
+						const registration = await navigator.serviceWorker.ready;
+						await registration.sync.register('cairn-character-sync');
+					} catch (error) {
+						console.error('Background sync registration failed:', error);
+					}
+				}
+			}
+
 			update((chars) => chars.map((c) => (c.id === id ? { ...c, ...updates } : c)));
 		},
-		// Delete a character from IndexedDB
-		async deleteLocal(id: string) {
+		// Delete a character from IndexedDB and queue for sync
+		async deleteLocal(id: string, isAuthenticated = false) {
 			if (!browser) return;
 
 			const { deleteLocalCharacter } = await import('../client/indexeddb');
+			const { queueSync } = await import('../client/syncQueue');
+
 			await deleteLocalCharacter(id);
+
+			// Queue sync operation if user is authenticated
+			if (isAuthenticated) {
+				await queueSync(id, 'delete');
+				// Trigger background sync
+				if ('serviceWorker' in navigator && 'sync' in (self as any).registration) {
+					try {
+						const registration = await navigator.serviceWorker.ready;
+						await registration.sync.register('cairn-character-sync');
+					} catch (error) {
+						console.error('Background sync registration failed:', error);
+					}
+				}
+			}
 
 			update((chars) => chars.filter((c) => c.id !== id));
 		},
@@ -107,6 +155,41 @@ function createCharacterStore() {
 			const { clearAllLocalCharacters } = await import('../client/indexeddb');
 			await clearAllLocalCharacters();
 			set([]);
+		},
+		// Manually trigger sync
+		async triggerSync() {
+			if (!browser) return;
+
+			if ('serviceWorker' in navigator) {
+				try {
+					const registration = await navigator.serviceWorker.ready;
+					// Try background sync API first
+					if ('sync' in registration) {
+						await registration.sync.register('cairn-character-sync');
+					} else {
+						// Fallback: send message to service worker for immediate sync
+						if (registration.active) {
+							const channel = new MessageChannel();
+							return new Promise((resolve, reject) => {
+								channel.port1.onmessage = (event) => {
+									if (event.data.success) {
+										resolve(event.data);
+									} else {
+										reject(new Error(event.data.error));
+									}
+								};
+								registration.active.postMessage(
+									{ type: 'SYNC_NOW' },
+									[channel.port2]
+								);
+							});
+						}
+					}
+				} catch (error) {
+					console.error('Manual sync failed:', error);
+					throw error;
+				}
+			}
 		}
 	};
 }
