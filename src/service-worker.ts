@@ -72,16 +72,39 @@ async function syncCharacterData() {
 	console.log('[Service Worker] Starting character sync...');
 	
 	try {
-		// Import dynamically to use IndexedDB in service worker context
-		const { syncQueueDb, completedSync, incrementRetry } = await import(
-			'$lib/client/syncQueue'
-		);
+		// Open the sync queue database directly using IndexedDB API
+		const dbRequest = indexedDB.open('CairnSyncQueue', 1);
+		
+		await new Promise((resolve, reject) => {
+			dbRequest.onsuccess = () => resolve(dbRequest.result);
+			dbRequest.onerror = () => reject(dbRequest.error);
+			dbRequest.onupgradeneeded = (event) => {
+				const db = event.target.result;
+				if (!db.objectStoreNames.contains('queue')) {
+					const objectStore = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true });
+					objectStore.createIndex('characterId', 'characterId', { unique: false });
+					objectStore.createIndex('operation', 'operation', { unique: false });
+					objectStore.createIndex('timestamp', 'timestamp', { unique: false });
+					objectStore.createIndex('userId', 'userId', { unique: false });
+				}
+			};
+		});
+		
+		const db = dbRequest.result;
 		
 		// Get all pending sync operations
-		const pendingSyncs = await syncQueueDb.queue.orderBy('timestamp').toArray();
+		const transaction = db.transaction(['queue'], 'readonly');
+		const objectStore = transaction.objectStore('queue');
+		const getAllRequest = objectStore.getAll();
 		
-		if (pendingSyncs.length === 0) {
+		const pendingSyncs = await new Promise((resolve, reject) => {
+			getAllRequest.onsuccess = () => resolve(getAllRequest.result);
+			getAllRequest.onerror = () => reject(getAllRequest.error);
+		});
+		
+		if (!pendingSyncs || pendingSyncs.length === 0) {
 			console.log('[Service Worker] No pending syncs');
+			db.close();
 			return;
 		}
 		
@@ -118,13 +141,36 @@ async function syncCharacterData() {
 				if (response.ok) {
 					// Sync successful, remove from queue
 					if (syncItem.id) {
-						await completedSync(syncItem.id);
+						const deleteTransaction = db.transaction(['queue'], 'readwrite');
+						const deleteObjectStore = deleteTransaction.objectStore('queue');
+						deleteObjectStore.delete(syncItem.id);
+						
+						await new Promise((resolve, reject) => {
+							deleteTransaction.oncomplete = () => resolve(undefined);
+							deleteTransaction.onerror = () => reject(deleteTransaction.error);
+						});
+						
 						console.log('[Service Worker] Sync completed:', syncItem.id);
 					}
 				} else {
 					// Sync failed, increment retry count
 					if (syncItem.id) {
-						await incrementRetry(syncItem.id);
+						const updateTransaction = db.transaction(['queue'], 'readwrite');
+						const updateObjectStore = updateTransaction.objectStore('queue');
+						const getRequest = updateObjectStore.get(syncItem.id);
+						
+						await new Promise((resolve, reject) => {
+							getRequest.onsuccess = () => {
+								const item = getRequest.result;
+								if (item) {
+									item.retryCount = (item.retryCount || 0) + 1;
+									updateObjectStore.put(item);
+								}
+								resolve(undefined);
+							};
+							getRequest.onerror = () => reject(getRequest.error);
+						});
+						
 						console.error('[Service Worker] Sync failed, will retry:', syncItem.id);
 					}
 				}
@@ -132,11 +178,30 @@ async function syncCharacterData() {
 				console.error('[Service Worker] Error processing sync item:', error);
 				// Increment retry count on error
 				if (syncItem.id) {
-					await incrementRetry(syncItem.id);
+					try {
+						const updateTransaction = db.transaction(['queue'], 'readwrite');
+						const updateObjectStore = updateTransaction.objectStore('queue');
+						const getRequest = updateObjectStore.get(syncItem.id);
+						
+						await new Promise((resolve, reject) => {
+							getRequest.onsuccess = () => {
+								const item = getRequest.result;
+								if (item) {
+									item.retryCount = (item.retryCount || 0) + 1;
+									updateObjectStore.put(item);
+								}
+								resolve(undefined);
+							};
+							getRequest.onerror = () => reject(getRequest.error);
+						});
+					} catch (updateError) {
+						console.error('[Service Worker] Error updating retry count:', updateError);
+					}
 				}
 			}
 		}
 		
+		db.close();
 		console.log('[Service Worker] Character sync completed');
 	} catch (error) {
 		console.error('[Service Worker] Sync error:', error);
