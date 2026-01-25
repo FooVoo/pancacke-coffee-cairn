@@ -1,11 +1,75 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import charterImage from '$lib/assets/char-example.png';
+	import { onMount } from 'svelte';
+	import type { Character } from '$lib/stores/characterStore';
 
 	let { data }: { data: PageData } = $props();
-	const character = data.character;
+	let character = $state<any>(data.character);
+	let loading = $state(false);
+
+	// Load character from IndexedDB if not loaded from server
+	onMount(async () => {
+		if (!character && data.characterId) {
+			loading = true;
+			try {
+				const { getLocalCharacter } = await import('$lib/client/indexeddb');
+				const localChar = await getLocalCharacter(data.characterId);
+				
+				if (localChar) {
+					// Convert from IndexedDB format
+					character = {
+						id: localChar.id,
+						name: localChar.name,
+						role: localChar.role,
+						background: localChar.background,
+						level: localChar.level,
+						experience: localChar.experience,
+						attributes: {
+							STR: localChar.str,
+							DEX: localChar.dex,
+							CON: localChar.con,
+							INT: localChar.int,
+							WIS: localChar.wis,
+							CHA: localChar.cha
+						},
+						hp: localChar.hp,
+						maxHp: localChar.maxHp,
+						hitDie: localChar.hitDie,
+						armorClass: localChar.armorClass,
+						proficiencyBonus: localChar.proficiencyBonus,
+						savingThrows: JSON.parse(localChar.savingThrows || '[]'),
+						skills: JSON.parse(localChar.skills || '[]'),
+						proficiencies: JSON.parse(localChar.proficiencies || '[]'),
+						languages: JSON.parse(localChar.languages || '[]'),
+						equipment: JSON.parse(localChar.equipment || '[]'),
+						weapons: JSON.parse(localChar.weapons || '[]'),
+						armor: JSON.parse(localChar.armor || '[]'),
+						spells: JSON.parse(localChar.spells || '[]'),
+						spellSlots: JSON.parse(localChar.spellSlots || '{}'),
+						gold: localChar.gold,
+						silver: localChar.silver,
+						copper: localChar.copper,
+						traits: JSON.parse(localChar.traits || '[]'),
+						ideals: localChar.ideals,
+						bonds: localChar.bonds,
+						flaws: localChar.flaws,
+						conditions: JSON.parse(localChar.conditions || '[]'),
+						features: JSON.parse(localChar.features || '[]'),
+						notes: localChar.notes,
+						avatarUrl: localChar.avatarUrl
+					};
+				}
+			} catch (error) {
+				console.error('Error loading character from IndexedDB:', error);
+			} finally {
+				loading = false;
+			}
+		}
+	});
 
 	const getStats = () => {
+		if (!character?.attributes) return [];
 		return Object.entries(character.attributes);
 	};
 
@@ -20,6 +84,16 @@
 		<a href="/characters" class="back-link">← Back to Characters</a>
 	</header>
 
+	{#if loading}
+		<div class="loading-state">
+			<p>Loading character...</p>
+		</div>
+	{:else if !character}
+		<div class="error-state">
+			<p>Character not found</p>
+			<a href="/characters" class="btn-primary">Back to Characters</a>
+		</div>
+	{:else}
 	<section class="character-info">
 		<img
 			class="character-image"
@@ -256,6 +330,7 @@
 			<p class="text-content">{character.notes}</p>
 		</section>
 	{/if}
+	{/if}
 </main>
 
 <style>
@@ -284,6 +359,42 @@
 
 	.back-link:hover {
 		text-decoration: underline;
+	}
+
+	.loading-state,
+	.error-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 50vh;
+		text-align: center;
+		gap: 1rem;
+	}
+
+	.loading-state p,
+	.error-state p {
+		font-size: 1.25rem;
+		color: var(--grim-muted-text);
+	}
+
+	.btn-primary {
+		background: linear-gradient(180deg, var(--grim-primary) 0%, color-mix(in srgb, var(--grim-primary) 75%, black 25%) 100%);
+		color: var(--grim-primary-contrast);
+		border: 1px solid color-mix(in srgb, var(--grim-primary) 45%, black 55%);
+		padding: 0.875rem 1.5rem;
+		border-radius: calc(var(--grim-border-radius) * 0.75);
+		font-size: 1rem;
+		font-weight: 600;
+		text-decoration: none;
+		display: inline-block;
+		cursor: pointer;
+		transition: transform 0.2s, box-shadow 0.2s;
+	}
+
+	.btn-primary:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px var(--grim-shadow);
 	}
 
 	.character-page > section {

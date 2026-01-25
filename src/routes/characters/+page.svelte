@@ -4,9 +4,11 @@
 	import { characterStore } from '$lib/stores/characterStore';
 	import { onMount } from 'svelte';
 	import { getDemoCharacter } from '$lib/data/demoCharacter';
+	import { handleUserLogin } from '$lib/client/serviceWorkerUtils';
 
 	let { data }: { data: PageData } = $props();
 	let demoCharacterCreated = $state(false);
+	let syncingData = $state(false);
 
 	// Load local characters from IndexedDB for anonymous users
 	onMount(async () => {
@@ -16,8 +18,21 @@
 			// Create demo character if this is first visit
 			const chars = $characterStore;
 			if (chars.length === 0) {
-				await characterStore.addLocal(getDemoCharacter());
+				await characterStore.addLocal(getDemoCharacter(), data.isAuthenticated);
 				demoCharacterCreated = true;
+			}
+		}
+
+		// Handle sync after login
+		if (data.isAuthenticated && data.user) {
+			syncingData = true;
+			try {
+				await handleUserLogin(data.user.id);
+				console.log('Successfully synced local data after login');
+			} catch (error) {
+				console.error('Error syncing after login:', error);
+			} finally {
+				syncingData = false;
 			}
 		}
 	});
@@ -34,6 +49,9 @@
 		<div class="header-actions">
 			{#if data.isAuthenticated && data.user}
 				<span class="user-info">Welcome, {data.user.username}</span>
+				{#if syncingData}
+					<span class="sync-status syncing">Syncing...</span>
+				{/if}
 				<form method="POST" action="/logout">
 					<button type="submit" class="btn-secondary">Logout</button>
 				</form>
@@ -114,6 +132,31 @@
 	.user-info {
 		color: var(--grim-muted-text);
 		font-size: 0.9rem;
+	}
+
+	.sync-status {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.25rem 0.75rem;
+		border-radius: calc(var(--grim-border-radius) * 0.5);
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+
+	.sync-status.syncing {
+		background: var(--grim-accent);
+		color: var(--grim-primary-contrast);
+		animation: pulse 1.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.7;
+		}
 	}
 
 	.btn-secondary {
