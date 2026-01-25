@@ -9,7 +9,10 @@ const config = {
 	kit: {
 		adapter: adapter({
 			runtime: 'nodejs22.x'
-		})
+		}),
+		serviceWorker: {
+			register: false // We register manually in +layout.svelte
+		}
 	}
 };
 

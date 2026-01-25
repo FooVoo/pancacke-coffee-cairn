@@ -1,19 +1,31 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
 import { getCharacter } from '$lib/server/characters';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+	// For authenticated users, load from TursoDB
+	if (locals.user) {
+		const character = await getCharacter(params.id, locals.user.id);
+
+		if (!character) {
+			// Character not found in server, might be in local storage
+			return {
+				character: null,
+				isAuthenticated: true,
+				characterId: params.id
+			};
+		}
+
+		return {
+			character,
+			isAuthenticated: true,
+			characterId: params.id
+		};
 	}
 
-	const character = await getCharacter(params.id, locals.user.id);
-
-	if (!character) {
-		throw error(404, 'Character not found');
-	}
-
+	// For anonymous users, return null (client will load from IndexedDB)
 	return {
-		character
+		character: null,
+		isAuthenticated: false,
+		characterId: params.id
 	};
 };
