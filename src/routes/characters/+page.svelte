@@ -3,22 +3,15 @@
 	import charterImage from '$lib/assets/char-example.png';
 	import { characterStore } from '$lib/stores/characterStore';
 	import { onMount } from 'svelte';
-	import { getDemoCharacter } from '$lib/data/demoCharacter';
 
 	let { data }: { data: PageData } = $props();
-	let demoCharacterCreated = $state(false);
+	let guestCharactersLoaded = $state(data.isAuthenticated);
 
-	// Load local characters from IndexedDB for anonymous users
+	// Load guest characters from IndexedDB and seed a demo record on first visit.
 	onMount(async () => {
-		if (!data.isAuthenticated && !demoCharacterCreated) {
-			await characterStore.loadLocal();
-			
-			// Create demo character if this is first visit
-			const chars = $characterStore;
-			if (chars.length === 0) {
-				await characterStore.addLocal(getDemoCharacter());
-				demoCharacterCreated = true;
-			}
+		if (!data.isAuthenticated) {
+			await characterStore.loadLocal({ seedDemo: true });
+			guestCharactersLoaded = true;
 		}
 	});
 
@@ -44,7 +37,11 @@
 		</div>
 	</header>
 
-	{#if allCharacters.length === 0}
+	{#if !data.isAuthenticated && !guestCharactersLoaded}
+		<div class="empty-state">
+			<p>Loading locally stored characters...</p>
+		</div>
+	{:else if allCharacters.length === 0}
 		<div class="empty-state">
 			<p>You don't have any characters yet.</p>
 			<a href="/characters/new" class="btn-primary">Create Your First Character</a>

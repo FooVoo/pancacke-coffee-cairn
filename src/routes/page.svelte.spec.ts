@@ -1,13 +1,11 @@
-import { page } from '@vitest/browser/context';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Page from './+page.svelte';
 
 describe('/+page.svelte', () => {
-	it('should render h1', async () => {
+	it('renders no visible content because navigation is handled by the server redirect', () => {
 		render(Page);
-
-		const heading = page.getByRole('heading', { level: 1 });
-		await expect.element(heading).toBeInTheDocument();
+		expect(document.querySelector('h1')).toBeNull();
+		expect(document.body.textContent?.trim()).toBe('');
 	});
 });

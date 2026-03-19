@@ -4,7 +4,12 @@ import { getCharacter } from '$lib/server/characters';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		return {
+			character: null,
+			characterId: params.id,
+			isAuthenticated: false,
+			user: null
+		};
 	}
 
 	const character = await getCharacter(params.id, locals.user.id);
@@ -14,6 +19,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	return {
-		character
+		character,
+		characterId: params.id,
+		isAuthenticated: true,
+		user: locals.user
 	};
 };

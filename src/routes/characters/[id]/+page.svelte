@@ -1,12 +1,26 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import charterImage from '$lib/assets/char-example.png';
+	import { getGuestCharacter, type Character } from '$lib/client/localFirstCharacterPipeline';
 
 	let { data }: { data: PageData } = $props();
-	const character = data.character;
+	let guestCharacter = $state<Character | null>(null);
+	let guestCharacterLoaded = $state(data.isAuthenticated);
+
+	const character = $derived(data.isAuthenticated ? data.character : guestCharacter);
+
+	onMount(async () => {
+		if (data.isAuthenticated) {
+			return;
+		}
+
+		guestCharacter = await getGuestCharacter(data.characterId);
+		guestCharacterLoaded = true;
+	});
 
 	const getStats = () => {
-		return Object.entries(character.attributes);
+		return character ? Object.entries(character.attributes) : [];
 	};
 
 	const getModifier = (score: number) => {
@@ -18,242 +32,258 @@
 <main class="character-page">
 	<header class="page-header">
 		<a href="/characters" class="back-link">← Back to Characters</a>
+		{#if !data.isAuthenticated}
+			<p class="mode-note">Guest Mode (data stored locally)</p>
+		{/if}
 	</header>
 
-	<section class="character-info">
-		<img
-			class="character-image"
-			src={character.avatarUrl || charterImage}
-			alt={character.name}
-			width="240"
-			height="360"
-		/>
-		<div class="character-info-description">
-			<h1 class="character-name">{character.name}</h1>
-			<p class="character-role">{character.role}</p>
-			{#if character.background}
-				<p class="character-background">{character.background}</p>
-			{/if}
-			<div class="character-vitals">
-				<div class="vital-stat">
-					<span class="vital-label">Level</span>
-					<span class="vital-value">{character.level || 1}</span>
+	{#if character}
+		<section class="character-info">
+			<img
+				class="character-image"
+				src={character.avatarUrl || charterImage}
+				alt={character.name}
+				width="240"
+				height="360"
+			/>
+			<div class="character-info-description">
+				<h1 class="character-name">{character.name}</h1>
+				<p class="character-role">{character.role}</p>
+				{#if character.background}
+					<p class="character-background">{character.background}</p>
+				{/if}
+				<div class="character-vitals">
+					<div class="vital-stat">
+						<span class="vital-label">Level</span>
+						<span class="vital-value">{character.level || 1}</span>
+					</div>
+					<div class="vital-stat">
+						<span class="vital-label">HP</span>
+						<span class="vital-value">{character.hp}/{character.maxHp || character.hp}</span>
+					</div>
+					<div class="vital-stat">
+						<span class="vital-label">AC</span>
+						<span class="vital-value">{character.armorClass || 10}</span>
+					</div>
+					<div class="vital-stat">
+						<span class="vital-label">Prof</span>
+						<span class="vital-value">+{character.proficiencyBonus || 2}</span>
+					</div>
 				</div>
-				<div class="vital-stat">
-					<span class="vital-label">HP</span>
-					<span class="vital-value">{character.hp}/{character.maxHp || character.hp}</span>
-				</div>
-				<div class="vital-stat">
-					<span class="vital-label">AC</span>
-					<span class="vital-value">{character.armorClass || 10}</span>
-				</div>
-				<div class="vital-stat">
-					<span class="vital-label">Prof</span>
-					<span class="vital-value">+{character.proficiencyBonus || 2}</span>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<section class="stats">
-		<h2>Attributes</h2>
-		<article class="stats-wrapper">
-			{#each getStats() as [statKey, value] (statKey)}
-				<div class="stat">
-					<div class="stat-header">{statKey}</div>
-					<div class="stat-value">{value}</div>
-					<div class="stat-modifier">{getModifier(value)}</div>
-				</div>
-			{/each}
-		</article>
-	</section>
-
-	{#if character.savingThrows && character.savingThrows.length > 0}
-		<section class="saving-throws">
-			<h2>Saving Throws</h2>
-			<div class="badges">
-				{#each character.savingThrows as save (save)}
-					<span class="badge badge-primary">{save}</span>
-				{/each}
 			</div>
 		</section>
-	{/if}
 
-	<section class="skills">
-		<h2>Skills</h2>
-		<div class="list-items">
-			{#each character.skills as skill (skill)}
-				<div class="list-item">{skill}</div>
-			{/each}
-		</div>
-	</section>
+		<section class="stats">
+			<h2>Attributes</h2>
+			<article class="stats-wrapper">
+				{#each getStats() as [statKey, value] (statKey)}
+					<div class="stat">
+						<div class="stat-header">{statKey}</div>
+						<div class="stat-value">{value}</div>
+						<div class="stat-modifier">{getModifier(value)}</div>
+					</div>
+				{/each}
+			</article>
+		</section>
 
-	{#if character.proficiencies && character.proficiencies.length > 0}
-		<section class="proficiencies">
-			<h2>Proficiencies</h2>
+		{#if character.savingThrows && character.savingThrows.length > 0}
+			<section class="saving-throws">
+				<h2>Saving Throws</h2>
+				<div class="badges">
+					{#each character.savingThrows as save (save)}
+						<span class="badge badge-primary">{save}</span>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<section class="skills">
+			<h2>Skills</h2>
 			<div class="list-items">
-				{#each character.proficiencies as prof (prof)}
-					<div class="list-item">{prof}</div>
+				{#each character.skills as skill (skill)}
+					<div class="list-item">{skill}</div>
 				{/each}
 			</div>
 		</section>
-	{/if}
 
-	{#if character.languages && character.languages.length > 0}
-		<section class="languages">
-			<h2>Languages</h2>
-			<div class="badges">
-				{#each character.languages as lang (lang)}
-					<span class="badge badge-secondary">{lang}</span>
-				{/each}
-			</div>
-		</section>
-	{/if}
+		{#if character.proficiencies && character.proficiencies.length > 0}
+			<section class="proficiencies">
+				<h2>Proficiencies</h2>
+				<div class="list-items">
+					{#each character.proficiencies as prof (prof)}
+						<div class="list-item">{prof}</div>
+					{/each}
+				</div>
+			</section>
+		{/if}
 
-	{#if character.weapons && character.weapons.length > 0}
-		<section class="weapons">
-			<h2>Weapons</h2>
-			<div class="equipment-list">
-				{#each character.weapons as weapon (weapon.name)}
-					<div class="equipment-item">
-						<div class="equipment-name">{weapon.name}</div>
-						<div class="equipment-details">
-							<span class="damage">{weapon.damage}</span>
-							{#if weapon.properties}
-								<span class="properties">{weapon.properties}</span>
-							{/if}
-						</div>
-					</div>
-				{/each}
-			</div>
-		</section>
-	{/if}
+		{#if character.languages && character.languages.length > 0}
+			<section class="languages">
+				<h2>Languages</h2>
+				<div class="badges">
+					{#each character.languages as lang (lang)}
+						<span class="badge badge-secondary">{lang}</span>
+					{/each}
+				</div>
+			</section>
+		{/if}
 
-	{#if character.armor && character.armor.length > 0}
-		<section class="armor">
-			<h2>Armor</h2>
-			<div class="equipment-list">
-				{#each character.armor as armorItem (armorItem.name)}
-					<div class="equipment-item">
-						<div class="equipment-name">{armorItem.name}</div>
-						<div class="equipment-details">
-							<span class="damage">AC {armorItem.ac}</span>
-							{#if armorItem.properties}
-								<span class="properties">{armorItem.properties}</span>
-							{/if}
-						</div>
-					</div>
-				{/each}
-			</div>
-		</section>
-	{/if}
-
-	<section class="inventory">
-		<h2>Equipment</h2>
-		<div class="list-items">
-			{#each character.equipment as item (item)}
-				<div class="list-item">{item}</div>
-			{/each}
-		</div>
-	</section>
-
-	{#if character.spells && character.spells.length > 0}
-		<section class="spells">
-			<h2>Spells</h2>
-			{#if character.spellSlots && Object.keys(character.spellSlots).length > 0}
-				<div class="spell-slots">
-					{#each Object.entries(character.spellSlots) as [level, slots]}
-						<div class="slot-group">
-							<span class="slot-label">Level {level}:</span>
-							<span class="slot-value">{slots} slots</span>
+		{#if character.weapons && character.weapons.length > 0}
+			<section class="weapons">
+				<h2>Weapons</h2>
+				<div class="equipment-list">
+					{#each character.weapons as weapon (weapon.name)}
+						<div class="equipment-item">
+							<div class="equipment-name">{weapon.name}</div>
+							<div class="equipment-details">
+								<span class="damage">{weapon.damage}</span>
+								{#if weapon.properties}
+									<span class="properties">{weapon.properties}</span>
+								{/if}
+							</div>
 						</div>
 					{/each}
 				</div>
-			{/if}
+			</section>
+		{/if}
+
+		{#if character.armor && character.armor.length > 0}
+			<section class="armor">
+				<h2>Armor</h2>
+				<div class="equipment-list">
+					{#each character.armor as armorItem (armorItem.name)}
+						<div class="equipment-item">
+							<div class="equipment-name">{armorItem.name}</div>
+							<div class="equipment-details">
+								<span class="damage">AC {armorItem.ac}</span>
+								{#if armorItem.properties}
+									<span class="properties">{armorItem.properties}</span>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<section class="inventory">
+			<h2>Equipment</h2>
 			<div class="list-items">
-				{#each character.spells as spell (spell)}
-					<div class="list-item spell-item">{spell}</div>
+				{#each character.equipment as item (item)}
+					<div class="list-item">{item}</div>
 				{/each}
 			</div>
 		</section>
-	{/if}
 
-	{#if character.features && character.features.length > 0}
-		<section class="features">
-			<h2>Features & Abilities</h2>
-			<div class="list-items">
-				{#each character.features as feature (feature)}
-					<div class="list-item feature-item">{feature}</div>
-				{/each}
+		{#if character.spells && character.spells.length > 0}
+			<section class="spells">
+				<h2>Spells</h2>
+				{#if character.spellSlots && Object.keys(character.spellSlots).length > 0}
+					<div class="spell-slots">
+						{#each Object.entries(character.spellSlots) as [level, slots]}
+							<div class="slot-group">
+								<span class="slot-label">Level {level}:</span>
+								<span class="slot-value">{slots} slots</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
+				<div class="list-items">
+					{#each character.spells as spell (spell)}
+						<div class="list-item spell-item">{spell}</div>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if character.features && character.features.length > 0}
+			<section class="features">
+				<h2>Features & Abilities</h2>
+				<div class="list-items">
+					{#each character.features as feature (feature)}
+						<div class="list-item feature-item">{feature}</div>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<section class="wealth">
+			<h2>Wealth</h2>
+			<div class="wealth-display">
+				<div class="coin-stack">
+					<span class="coin-value">{character.gold || 0}</span>
+					<span class="coin-label">Gold</span>
+				</div>
+				<div class="coin-stack">
+					<span class="coin-value">{character.silver || 0}</span>
+					<span class="coin-label">Silver</span>
+				</div>
+				<div class="coin-stack">
+					<span class="coin-value">{character.copper || 0}</span>
+					<span class="coin-label">Copper</span>
+				</div>
 			</div>
 		</section>
-	{/if}
 
-	<section class="wealth">
-		<h2>Wealth</h2>
-		<div class="wealth-display">
-			<div class="coin-stack">
-				<span class="coin-value">{character.gold || 0}</span>
-				<span class="coin-label">Gold</span>
-			</div>
-			<div class="coin-stack">
-				<span class="coin-value">{character.silver || 0}</span>
-				<span class="coin-label">Silver</span>
-			</div>
-			<div class="coin-stack">
-				<span class="coin-value">{character.copper || 0}</span>
-				<span class="coin-label">Copper</span>
-			</div>
-		</div>
-	</section>
+		{#if character.traits && character.traits.length > 0}
+			<section class="traits">
+				<h2>Personality Traits</h2>
+				<div class="badges">
+					{#each character.traits as trait (trait)}
+						<span class="badge badge-accent">{trait}</span>
+					{/each}
+				</div>
+			</section>
+		{/if}
 
-	{#if character.traits && character.traits.length > 0}
-		<section class="traits">
-			<h2>Personality Traits</h2>
-			<div class="badges">
-				{#each character.traits as trait (trait)}
-					<span class="badge badge-accent">{trait}</span>
-				{/each}
-			</div>
-		</section>
-	{/if}
+		{#if character.ideals}
+			<section class="ideals">
+				<h2>Ideals</h2>
+				<p class="text-content">{character.ideals}</p>
+			</section>
+		{/if}
 
-	{#if character.ideals}
-		<section class="ideals">
-			<h2>Ideals</h2>
-			<p class="text-content">{character.ideals}</p>
-		</section>
-	{/if}
+		{#if character.bonds}
+			<section class="bonds">
+				<h2>Bonds</h2>
+				<p class="text-content">{character.bonds}</p>
+			</section>
+		{/if}
 
-	{#if character.bonds}
-		<section class="bonds">
-			<h2>Bonds</h2>
-			<p class="text-content">{character.bonds}</p>
-		</section>
-	{/if}
+		{#if character.flaws}
+			<section class="flaws">
+				<h2>Flaws</h2>
+				<p class="text-content">{character.flaws}</p>
+			</section>
+		{/if}
 
-	{#if character.flaws}
-		<section class="flaws">
-			<h2>Flaws</h2>
-			<p class="text-content">{character.flaws}</p>
-		</section>
-	{/if}
+		{#if character.conditions && character.conditions.length > 0}
+			<section class="conditions">
+				<h2>Active Conditions</h2>
+				<div class="badges">
+					{#each character.conditions as condition (condition)}
+						<span class="badge badge-danger">{condition}</span>
+					{/each}
+				</div>
+			</section>
+		{/if}
 
-	{#if character.conditions && character.conditions.length > 0}
-		<section class="conditions">
-			<h2>Active Conditions</h2>
-			<div class="badges">
-				{#each character.conditions as condition (condition)}
-					<span class="badge badge-danger">{condition}</span>
-				{/each}
-			</div>
-		</section>
-	{/if}
-
-	{#if character.notes}
-		<section class="notes">
-			<h2>Notes</h2>
-			<p class="text-content">{character.notes}</p>
+		{#if character.notes}
+			<section class="notes">
+				<h2>Notes</h2>
+				<p class="text-content">{character.notes}</p>
+			</section>
+		{/if}
+	{:else}
+		<section class="status-panel">
+			<h1 class="character-name">
+				{guestCharacterLoaded ? 'Character not found' : 'Loading character...'}
+			</h1>
+			<p class="text-content">
+				{guestCharacterLoaded
+					? 'This guest character was not found in local storage.'
+					: 'Loading locally stored character data.'}
+			</p>
 		</section>
 	{/if}
 </main>
@@ -270,6 +300,9 @@
 	}
 
 	.page-header {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 		margin-bottom: 0.5rem;
 	}
 
@@ -284,6 +317,17 @@
 
 	.back-link:hover {
 		text-decoration: underline;
+	}
+
+	.mode-note {
+		margin: 0;
+		color: var(--grim-muted-text);
+		font-size: 0.95rem;
+	}
+
+	.status-panel {
+		display: grid;
+		gap: 1rem;
 	}
 
 	.character-page > section {
